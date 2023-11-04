@@ -1,1 +1,1192 @@
-// data_import
+library(raster)
+library(tiff)
+
+library(rgdal)
+
+setwd("G:/PH.D/my phd thesis/contents/13_chapter 4/image_data")
+
+r=raster ("aa.tif")
+r
+
+#number of bands in raster images
+r@file@nbands
+
+#import specific bands
+
+band61 <- 
+  raster(paste0('G:/PH.D/my phd thesis/contents/13_chapter 4/image_data/aa.tif'), 
+         band = 61)
+
+band61
+band62 <- 
+  raster(paste0('G:/PH.D/my phd thesis/contents/13_chapter 4/image_data/aa.tif'), 
+         band = 62)
+
+
+band62
+
+#join the two bands
+cc<- stack(band61, band62)
+
+cc
+
+#data frame for extract by column
+df =as.data.frame(cc, xy=T)
+df
+
+#to read all bands together
+all_bands <- 
+  stack(paste0("G:/PH.D/my phd thesis/contents/13_chapter 4/image_data/aa.tif"))
+
+all_bands
+
+#data frame for extract by column
+df1 =as.data.frame(all_bands, xy=T)
+head(df1)
+
+#SPVI, WDRVI, IPVI, NDMI
+
+library(ggplot2)
+
+
+# to replace the 'inf' to 'na'
+inf<-do.call(data.frame,lapply(df1, function(x) replace(x, is.infinite(x),NA)))
+#to remove "na" value
+ompleterecords <- na.omit(inf) 
+head(ompleterecords)
+
+#for correlation matrix
+library(Hmisc)
+res2 <- rcorr(as.matrix(ompleterecords))
+head(res2)
+
+
+
+#to read all bands together
+VV <- 
+  stack(paste0("G:/PH.D/my phd thesis/contents/13_chapter 4/image_data/VVV.tif"))
+
+VV
+mean(VV)
+
+#to read all bands together of sar
+VH <- 
+  stack(paste0("G:/PH.D/my phd thesis/contents/13_chapter 4/image_data/VHH.tif"))
+VH
+
+mean(VH)
+VV_VH_ratio<-VV/VH
+VV_VH_ratio
+
+qq <- stack(VV, VH,VV_VH_ratio)
+qq
+
+#layer/bands names
+names(qq)
+names (qq) <- c('VV','VH','VV_VH')
+
+names (qq)
+
+#renames the bands
+sar<-writeRaster(qq, filename=names(qq), bylayer=TRUE,overwrite=TRUE)
+head(sar,5)
+plot(sar)
+
+#data frame for extract by column
+df2 =as.data.frame(sar, xy=T)
+head(df2)
+
+# to replace the 'inf' to 'na'
+inf<-do.call(data.frame,lapply(df2, function(x) replace(x, is.infinite(x),NA)))
+#to remove "na" value
+ompleterecords <- na.omit(inf) 
+ompleterecords
+
+
+#to read all bands together of dem
+elevation <- 
+  stack(paste0("G:/PH.D/my phd thesis/contents/13_chapter 4/image_data/elevation.tif"))
+elevation
+
+plot(elevation)
+#data frame for extract by column
+df3 =as.data.frame(elevation, xy=T)
+df3
+# to replace the 'inf' to 'na'
+inf<-do.call(data.frame,lapply(df3, function(x) replace(x, is.infinite(x),NA)))
+#to remove "na" value
+ompleterecords <- na.omit(inf) 
+ompleterecords
+summary(ompleterecords)
+
+aa<- stack(sar, elevation)
+head(aa,5)
+
+#S4 method for RasterLayer
+slope<- terrain(aa$elevation, opt="slope", unit="degrees", neighbors=4)
+slope
+# the distribution of values in the raster
+hist(slope)
+plot(slope)
+aspect<-terrain(aa$elevation, opt="aspect", unit="degrees", neighbors=4)
+aspect
+
+roughness<- terrain(aa$elevation, opt="roughness", unit="degrees", neighbors=4)
+roughness
+
+TRI<- terrain(aa$elevation, opt="TRI", unit="degrees", neighbors=4)
+TRI
+plot(roughness)
+#stack
+sar_topo<-stack(aa, slope, aspect, roughness)
+head(sar_topo,5)
+plot(sar_topo)
+
+#GLCM
+library(glcm)
+library(raster)
+
+#need raster data for glcm
+vv_glcm=raster ("VV")
+
+glcm<-glcm(vv_glcm, n_grey = 32, window = c(3, 3), shift = c(1, 1), statistics = 
+             c("mean", "variance", "homogeneity", "contrast", "dissimilarity", "entropy", 
+               "second_moment", "correlation"), min_x=NULL, max_x=NULL, na_opt="any", 
+           na_val=NA, scale_factor=1, asinteger=FALSE)
+
+print(glcm)
+
+VH_glcm=raster ("VH")
+
+glcm1<-glcm(VH_glcm, n_grey = 32, window = c(3, 3), shift = c(1, 1), statistics = 
+              c("mean", "variance", "homogeneity", "contrast", "dissimilarity", "entropy", 
+                "second_moment", "correlation"), min_x=NULL, max_x=NULL, na_opt="any", 
+            na_val=NA, scale_factor=1, asinteger=FALSE)
+
+print(glcm1)
+
+plot(glcm1)
+
+
+#layer/bands names
+
+names (glcm) <- c('VV_mean','VV_variance','VV_homogeneity', 
+                  'VV_contrast', 'VV_dissimilarity', 'VV_entropy', 
+                  'VV_second_moment','VV_correlation')
+
+names (glcm)
+
+#renames the bands
+glcm_rename<-writeRaster(glcm, filename=names(glcm), bylayer=TRUE,overwrite=TRUE)
+glcm_rename
+
+#layer/bands names
+
+names (glcm1) <- c('VH_mean','VH_variance','VH_homogeneity', 'VH_contrast', 'VH_dissimilarity', 'VH_entropy', 'VH_second_moment','VH_correlation')
+
+names (glcm1)
+
+#renames the bands
+glcm_rename1<-writeRaster(glcm1, filename=names(glcm1), bylayer=TRUE,overwrite=TRUE)
+glcm_rename1
+
+
+join_glcm <-stack (glcm_rename, glcm_rename1)
+join_glcm
+
+#data frame for extract by column
+df4=as.data.frame(join_glcm, xy=T)
+df4
+
+# to replace the 'inf' to 'na'
+inf<-do.call(data.frame,lapply(df4, function(x) replace(x, is.infinite(x),NA)))
+#to remove "na" value
+ompleterecords <- na.omit(inf) 
+head (ompleterecords)
+
+
+
+all_stack_indices <- stack (all_bands, sar_topo, join_glcm)
+all_stack_indices
+#plot#RGB
+plotRGB(all_bands,
+        r = 8, g = 3, b = 2)
+
+#data frame for extract by column
+df5=as.data.frame(all_stack_indices, xy=T)
+head (df5)
+
+
+# to replace the 'inf' to 'na'
+inf<-do.call(data.frame,lapply(df5, function(x) replace(x, is.infinite(x),NA)))
+#to remove "na" value
+ompleterecords <- na.omit(inf) 
+head(ompleterecords)
+
+head<- head(ompleterecords, 5)
+head
+
+plot (all_stack_indices$B2)
+
+names (all_stack_indices)
+#for correlation matrix
+
+library(Hmisc)
+res2 <- rcorr(as.matrix(ompleterecords))
+head(res2)
+
+##extract pixel value //////////////////////////////////////////////////////////////////////////////
+#INSTALL R PACKAGES
+#install.packages("raster")
+#install.packages("sp")
+#install.packages("rgdal")
+#install.packages("maptools")
+#install.packages("rgeos")
+#install.packages("dplyr")
+#install.packages("ggplot2")
+
+##working_on////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+i#nstall.packages("maptools")
+
+## 
+## The downloaded binary packages are in
+## 	/var/folders/bn/w43q_t8s3_xckn5j4plhb289fqhhfx/T//Rtmp6ITj5Y/downloaded_packages
+
+#NOTE: the sp library typically installs when you install the raster package
+# Load needed packages
+library(raster)
+library(rgdal)
+library(dplyr)
+
+# Method 3:shapefiles
+library(maptools)
+
+# plotting
+library(ggplot2)
+
+# set working directory to ensure R can find the file we wish to import and where
+wd <- ("G:/PH.D/my phd thesis/contents/13_chapter 4/data analysis") #This will depend on your local environment
+setwd(wd)
+
+# import the centroid data and the vegetation structure data
+# this means all strings of letter coming in will remain character
+options(stringsAsFactors=FALSE)
+
+# read in plot location
+centroids <- read.csv(paste0("G:/PH.D/my phd thesis/contents/13_chapter 4/data analysis/location only.csv"))
+#to see the column name and character
+
+str(centroids) 
+#only name
+names(centroids)
+
+# read the carbon stock of corresponding location  vegetation heights
+Carbon <- read.csv(paste0("G:/PH.D/my phd thesis/contents/13_chapter 4/data analysis/CARBON STOCK MAIN.csv"))
+#to see the column name and character
+
+str(Carbon) 
+#only name
+names(Carbon)
+
+# plot raster
+plot(all_stack_indices$elevation, main="elevation") 
+
+## overlay the centroid points and the stem locations on the CHM plot
+# plot the chm
+myCol <- terrain.colors(7)
+   #plot(all_stack_indices$elevation,col=myCol, main="Plot & Tree Locations", breaks=c(1,20,40,60,80,100,120)) 
+
+# plot square around the centroid
+  #points(centroids$longitude,centroids$latitude, pch=0, cex = 1 ) 
+
+# plot location of each tree measured
+points(centroids$longitude,centroids$latitude, pch=19, cex=.5, col = 2)
+
+
+#Spatial Data Need a Coordinate Reference System 
+
+# check indices CRS
+all_stack_indices@crs
+
+## create SPDF: SpatialPointsDataFrame()
+# specify the easting (column 3) & northing (columns 2) in that order
+# specify CRS proj4string: borrow CRS from chm 
+# specify raster
+centroid_spdf <- SpatialPointsDataFrame(
+  centroids[,3:2], proj4string=all_stack_indices@crs, centroids)
+
+centroid_spdf
+
+
+# now we want to extract the elevation 
+#at the point for each tree we measured. 
+
+# To do this, we will create a boundary region (called a buffer)
+#representing the spatial extent of each plot (where trees were measured).
+#We will then extract all elevation pixels that fall within 
+#the plot boundary to use to estimate elevation for that plot.
+
+#When a circular buffer is applied to a raster, 
+#some pixels fall fully within the buffer but some 
+#are partially excluded. Values for all pixels in the 
+#specified raster that fall within the circular buffer are extracted.
+
+# extract circular, 20m buffer
+#we will specify to use the function from the raster package
+
+
+
+B2 <- raster::extract(all_stack_indices$B2,             # raster layer
+                      centroid_spdf,   # SPDF with centroids for buffer
+                      # buffer = 50,     # buffer size, units depend on CRS
+                      #fun=max,         # what to value to extract//you can use max, min etc
+                      df=TRUE)         # return a dataframe? 
+
+#If we want to explore the data distribution of elevation values of 
+# each buffer pixel, we could remove the fun call to max and generate a list.
+#If we want to explore the data distribution of elevation values of 
+# each plot which is corresponding to the , we could remove the "buffer" call to max and generate a list.
+
+# view
+head(B2)
+# grab the names of the plots from the centroidS
+B2$plot_id <- centroids$OID
+B2$plot_id
+#extract single bands
+B2 <- raster::extract(all_stack_indices$B2,centroid_spdf, df=TRUE) 
+#extract all bands
+#view again - we have plot_ids
+total_bands<- raster::extract(all_stack_indices,centroid_spdf, df=TRUE)
+
+# save the model to disk
+saveRDS(total_bands, "./final_model.rdss")
+
+# later...
+
+# load the model
+total_bands <- readRDS("./final_model.rdss")
+
+#/////////////////////////////////////////////////////////////////////////////////
+
+#re-title the name
+centroidss=centroids
+#fix the column names//one will be same as to "total_bands"
+names(centroidss) <- c('ID', 'Latitude', 'Longitude') 
+
+
+# merge the ttotal_bands data into the centroids data.frame
+centroids85 <- merge(centroidss,total_bands, by.x = 'ID', by.y = 'ID')
+
+
+
+#to know the observation and predictors  
+str(centroids85)
+# read the carbon stock of corresponding location  vegetation heights
+Carbon <- read.csv(paste0("G:/PH.D/my phd thesis/contents/13_chapter 4/data analysis/CARBON STOCK MAINN.csv"))
+#to see the column name and character
+head(Carbon)
+
+#fix the column names//one will be same as to "centorid85"
+names(Carbon) <- c('ID', 'above_ground_tree ', 'total_above_ground_living', 'total_above_ground_non_living',
+                   'Total_above_ground_biomass_carbon','SOC','Total_carbon_stock')
+
+carbon_indices<- merge(Carbon,centroids85, by.x = 'ID', by.y = 'ID')
+head(carbon_indices)
+#data frame for extract by column
+df8 =as.data.frame(carbon_indices, xy=T)
+
+write.csv(df8, 'C:/Users/DIPANKAR BERA/Downloads/table_car.csv')
+
+head(df8)
+str(df8)
+
+#to detect outlier////////////////////////////////////////////////////////////////////////////////////////
+#scatter
+plot(df8$elevation)
+#boxplot
+boxplot(df8$above_ground_tree)
+#therotecically detect #out outcome is outlier
+boxplot(df8$above_ground_tree, plot=FALSE)
+
+#outlier
+outliers <- boxplot(df8$above_ground_tree, plot=FALSE)$out
+
+#remove the outlier raw from whole data
+x<- df8
+df9<- x[-which(x$above_ground_tree %in% outliers),]
+
+str(df9)
+#summary
+summary(df9$`above_ground_tree `)
+
+library(ggplot2)
+
+
+
+
+#install.packages("Boruta")//for feature selection//////////////////////////////////////////////////////////////////////////////
+library(Boruta)
+
+#Let's have a look at the data.
+str(df9)
+names(df9) <- gsub("_", "", names(df9))
+summary(df9)
+
+
+#select predictor variables//2 FOR DEPENDENT VARIABLES
+library(tidyverse)
+selected<-df9 %>% select(2, 10:94)
+selected
+
+names(selected)
+str(selected)
+
+#Na data fill with mean of column//if less number of sample
+#fill with mean is better than remove the RAW/sample 
+
+#need library
+library(dplyr)    
+
+
+selected1<-selected %>% mutate_all(~ifelse(is.na(.x), mean(.x, na.rm = TRUE), .x)) 
+
+#fill data with mean
+selected1
+
+names(selected1)
+
+
+
+
+# to replace the 'inf' to 'na'//only vv_correlation have na column
+inf<-do.call(data.frame,lapply(selected1, function(x) replace(x, is.infinite(x),NA)))
+#to remove "na" value
+df10 <- na.omit(inf) 
+str(df10)
+
+
+all_data=df10
+all_data
+
+all_dataa<- as.data.frame(all_data)
+
+set.seed(123)
+#IF COUNT ALL VARIABLES...SHOULD NOT USE X VARABLES
+boruta.train <- Boruta(abovegroundtree.    ~., data = all_dataa, doTrace = 2)
+print(boruta.train)
+
+#get tentative variables with selected variables
+getSelectedAttributes(boruta.train, withTentative = T)
+#PLOT
+#Blue boxplots correspond to minimal, average and maximum Z score of a shadow attribute
+#GREEN = CONFIRMED IMPORTANT
+#YELLOW = TENTATIVE/ NO DECISION MADE
+#RED = REJECT
+
+plot(boruta.train, xlab = "", xaxt = "n")
+lz<-lapply(1:ncol(boruta.train$ImpHistory),function(i)
+  boruta.train$ImpHistory[is.finite(boruta.train$ImpHistory[,i]),i])
+names(lz) <- colnames(boruta.train$ImpHistory)
+Labels <- sort(sapply(lz,median))
+axis(side = 1,las=2,labels = names(Labels),
+     at = 1:ncol(boruta.train$ImpHistory), cex.axis = 0.7)
+
+#Now is the time to take decision on tentative attributes. 
+#The tentative attributes will be classified as confirmed or
+#rejected by comparing the median Z score of the attributes with 
+#the median Z score of the best shadow attribute
+
+final.boruta <- TentativeRoughFix(boruta.train)
+print(final.boruta)
+plot(final.boruta, xlab = "", xaxt = "n")
+
+#SELECTED OR CONFIRMED ATTRIBUTES
+getSelectedAttributes(final.boruta, withTentative = F)
+
+#TO KNOW REJECTION AND CONFIRMAT
+bank_df <- attStats(final.boruta)
+print(bank_df)
+
+
+# libraries needed
+library(caret)
+library(psych)
+
+#select important bu bortua
+names(selected1)
+#SELECTED OR CONFIRMED ATTRIBUTES
+getSelectedAttributes(final.boruta, withTentative = F)
+
+select_important =subset (selected1, select =c(1,10, 11, 41,43,51,65,79))
+head(select_important)
+
+select_important=data.frame(select_important)
+
+# Manual Search and grid search combo//combo ntree and mtry
+control <- trainControl(method="repeatedcv", number=10, repeats=10, search="grid")
+tunegrid <- expand.grid(.mtry=c(1:2))
+modellist <- list()
+for (ntree in c(1800,1900,2000)) {
+  set.seed(3)
+    fit <- train(Totalcarbonstock~., data=select_important, method= "rf", 
+               tuneGrid=tunegrid, trControl=control, ntree=ntree,
+               importance = TRUE )
+  key <- toString(ntree)
+  modellist[[key]] <- fit
+}
+
+# save the model to disk
+saveRDS(modellist, "./final_model.rdsss")
+
+# later...
+
+# load the model
+modellist <- readRDS("./final_model.rdsss")
+
+print(modellist)
+attributes(fit)
+#best model
+fit$bestTune
+prediction1 =predict(fit)
+
+#CROSS VALIDATION////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+# libraries needed
+library(caret)
+library(psych)
+
+# Define train control for k fold cross validation
+set.seed(1)
+train_control <- trainControl(method="repeatedcv", number=10,repeats=10, savePredictions = TRUE)
+
+library(randomForest)
+
+
+
+head(select_important)
+#reate random forest for regression//using best parameters of above grid search
+
+#if we put seed same output come//if not put seed different time different output
+ran <- randomForest( Totalcarbonstock       ~ ., data = select_important,
+                    mtry = 1,ntree=2000,trControl=train_control,
+                    importance = TRUE, na.action = na.omit)
+ran 
+
+attributes(ran)
+ran$predicted
+#to see the details of the model
+str(ran)
+#Plot the error vs the number of trees graph
+plot(ran)
+#variables importance
+importance(ran)
+importance(ran, type=1)
+
+#to predict the  observation of RF model
+
+prediction1<-predict(ran, select_important1)
+prediction1
+#OR SAME RESULTS
+ran$predicted
+fitted(ran)
+#plot the observation vs predictio6
+plot (prediction1~select_important$Totalcarbonstock, xlim =c(0,175), ylim =c(0,175))
+abline(0,1)
+#RMSE
+RMSE(prediction1,select_important$Totalcarbonstock)
+
+#to know the attributes of the model
+attributes(ran)
+
+#mse
+mse<-ran$mse
+
+rmse<- sqrt(mse)
+#average error
+mean(rmse)
+
+#predicted
+prediction<-ran$predicted
+
+
+#RSS
+rss<-sum((prediction1-select_important$Totalcarbonstock)^2)
+
+#SSTOTAL
+sstotal<-sum((select_important$Totalcarbonstock-mean(select_important$Totalcarbonstock))^2)
+
+r2<-1-(rss/sstotal)
+r2
+
+
+main_data<-all_stack_indices
+
+str(main_data)
+
+#predict over raster data//////////////////////////////////////////////////////////////////////
+
+#TO KNOW THE BANDS
+names(all_stack_indices)
+#SELECTED OR CONFIRMED ATTRIBUTES
+getSelectedAttributes(final.boruta, withTentative = F)
+
+#fill na value with mean/////////////////////////////////////////////////////////////
+#VHmean have na value //have to remove
+VH_mean=all_stack_indices$VH_mean
+#TO CHECK na
+summary(VH_mean)
+
+VH_meanM= as.data.frame(VH_mean)
+#avid na to compute mean
+dfr <- as.data.frame(VH_meanM, na.rm=T)
+summary(dfr)
+#filled na with median/mean from summary
+VH_mean[is.na(VH_mean)] <- 0.5
+VH_mean
+
+summary(VH_mean)
+VHmeannn=VH_mean
+#EXTRACT FOR SINGLE BAND
+names(all_stack_indices) 
+
+B11 <- all_stack_indices[[9]] 
+B12 <- all_stack_indices[[10]] 
+SIPI <-all_stack_indices[[40]]
+MNDVI<-all_stack_indices[[42]]
+EVI<-all_stack_indices[[50]]
+VHmeanb<-VHmeannn
+VH<-all_stack_indices[[64]]
+
+plot(VHmeanb)
+
+#need image data
+IMPOR_DATA<-stack(B11,B12, SIPI, MNDVI, EVI, VH, VHmeanb)
+
+names(IMPOR_DATA)<- c( 'B11','B12', 'SIPI', 'MNDVI', 'EVI','VH','VHmean')
+
+#convert raster data into spatial pixel data
+datas<-as(IMPOR_DATA, "SpatialPixelsDataFrame")
+
+
+datas$lon = datas@coords [,1]
+datas$lat = datas@coords [,2]
+str(datas)
+
+names(datas)<- c( 'B11','B12', 'SIPI', 'MNDVI', 'EVI','VH','VHmean', "long", "lat")
+
+head(datas)
+
+head(select_important)
+#predict over image
+pred_map <- raster::predict(ran, object=IMPOR_DATA,na.action = na.omit)
+plot(pred_map)
+
+
+hist(pred_map)
+
+carbon=as.data.frame(pred_map, xy=T)
+summary(carbon)
+
+#avid na to compute mean
+dfrr <- as.data.frame(pred_map, na.rm=T)
+summary(dfrr)
+
+hist(select_important$abovegroundtree)
+summary(select_important$abovegroundtree)
+hist(prediction1)
+summary(prediction1)
+
+#for predict , need same number of variables used for RANDOM forest model
+#such AS we have used 7 bands for model, therefore have to use same 7 bands for prediction
+datas$Pred_above_ground_tree<- predict(ran, newdata =datas, na.action = na.omit)
+
+
+#ready to plots
+library(sp)
+plot<-spplot(datas, zcol="Pred_above_ground_tree")
+
+plot
+
+str(plot)
+
+library(e1071)
+
+#if we put seed same output come//if not put seed different time different output
+ran <- randomForest(abovegroundtree. ~ ., data = select_important,
+                    mtry = 1,ntree=2000,trControl=train_control,
+                    importance = TRUE, na.action = na.omit)
+ran 
+
+library(purrr) 
+
+# 100 time run // need replicate function
+model<-replicate (n=100, {rann<-randomForest(abovegroundtree. ~ ., data = select_important,
+                    mtry = 1,ntree=2000,trControl=train_control,
+                    importance = TRUE, na.action = na.omit)})
+
+
+
+model
+ model[,1]
+
+
+
+
+#single model
+
+model[,1]
+model[,2]
+#single prediction
+model[,1]$predicted
+model[,2]$predicted
+
+
+summary(model)
+attributes(model)
+
+model
+#select single model
+model[,1]
+
+
+
+#variable importance//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#select column
+model[,c(100,99)]
+
+#select row//importance of all models
+#row 7 has importance
+all_importance<-model[7,]
+
+df=data.frame(all_importance)
+#row means of column of importance
+#for only even column
+rowMeans(df[, c(TRUE,FALSE)])
+#row sd of column
+library(matrixStats)
+library(dplyr)
+
+bb<-rowSds(as.matrix(df[, c(TRUE, FALSE)]))
+bb
+#SE
+bb/sqrt(100)
+
+#prediction//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+model
+
+
+#select row//prediction of all models
+#row 3 has prediction
+#check
+model
+all_prediction<-model[3,]
+all_prediction
+
+#RMSE///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#RMSE of particular model such as 100th model
+rmse=RMSE(all_prediction[[100]], select_important$abovegroundtree.)
+rmse
+
+#data frame 
+df1=data.frame(all_prediction)
+#rename the coulm name
+names(df1)<-c(1:100)
+
+#rmse of all/100 model together...............................................................................................
+RMSEE <- function (x, test) sqrt(mean((x-select_important$abovegroundtree.)^2))
+rmse_100 <- lapply(df1, FUN = RMSEE, test)
+rmse_100
+
+#convert to data.frame
+x_frame=data.frame(rmse_100)
+x_frame
+head(x_frame)
+
+#mean rmse of 100 model......................................................................................................
+rowMeans(x_frame[,c(1:100)])
+#standard deviation
+bbbb<-rowSds(as.matrix(x_frame[, c(1:100)]))
+bbbb
+#standard error of rmse of 100 model
+bbbb/sqrt(100)
+
+
+#prediction over image......///////////////////////////////////////////////////////////////////////////////////////////////////////
+#predicted data of 100 th model
+aa=model [,100]$predicted
+aa
+
+
+kk=model[,3]      
+ran
+
+
+ran$y
+summary(ran)
+attributes(ran)
+attributes(model[,1])
+summary(model)
+summary(model[,1])
+
+aa=model[,1]
+
+attributes(model[,1])
+model$rsq
+
+model[,1]$forest
+model
+
+#prediction over map
+library(caret)
+library(kernlab)
+pred_map <- raster::predict(model[,1] , object=IMPOR_DATA, type='response',na.action = na.omit)
+
+model[,1]$predicted
+
+str(model)
+
+predict(model,object=IMPOR_DATA, type = "class")
+
+#color generate
+library(colorRamps)
+palette <- matlab.like(20)
+palette1=blue2red(20)
+palette2=blue2green(20)
+palette4=cyan2yellow(20)
+palette5=magenta2green(20)
+palette6=matlab.like2(20)
+palette7=blue2green2red(20)
+
+plot(pred_map,col=palette7)
+
+an=writeRaster(pred_map, "pred_map", format='GTiff',overwrite=TRUE)
+
+
+#////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+require(randomForest)
+
+#run rf moddle multiple time //importance
+result_imp <- data.frame()
+for (i in 1:100){  #1:50 number times
+  imp    <- importance(randomForest(select_important$abovegroundtree.~., data = select_important,
+                                    importance = TRUE,trControl=train_control,
+                                    ntree =2000, mtry=1), type=1)#type 1 to take accuracy column
+  result_imp <- rbind(result_imp,imp)}
+
+result_imp
+
+#convert row into colmn
+aa=as.data.frame(t(result_imp))
+
+#split after evrey 8th coulmn 
+bb<-as.data.frame(matrix(unlist(aa, use.names=TRUE),ncol=7, byrow=TRUE))
+
+names (bb)= c('B11','B12', 'SIPI','MNDVI','EVI','VH','VHmean' )
+
+#for only even column
+colMeans(bb[, c(1:7)])
+colSds(as.matrix(bb[, c(1:7)]))
+
+#run rf moddle multiple time //prediction///////////////////////////////////////////////////////////////////////////////
+result_pre <- data.frame()
+for (i in 1:100){  #1:50 number times
+  imp    <- predict(randomForest(abovegroundtree.~., data = select_important,
+                                    importance = TRUE,trControl=train_control,
+                                    ntree =2000, proximity = TRUE, mtry=1), type='response')#type 1 to take accuracy column
+  result_pre <- rbind(result_pre,imp)}
+
+result_pre
+
+#convert row into colmn
+aak=as.data.frame(t(result_pre))
+#rename the coulm name
+names(aak)<-c(1:100)
+
+#rmse of all/100 model together...............................................................................................
+RMSEEE <- function (x, test) sqrt(mean((x-select_important$abovegroundtree.)^2))
+rmse_1000 <- lapply(aak, FUN = RMSEEE, test)
+rmse_1000
+
+#convert to data.frame
+x_framee=data.frame(rmse_1000)
+x_framee
+head(x_framee)
+
+#mean rmse of 100 model......................................................................................................
+rowMeans(x_framee[,c(1:100)])
+#standard deviation
+bbbb<-rowSds(as.matrix(x_framee[, c(1:100)]))
+bbbb
+
+library(randomForest)
+
+#predict over image
+
+  imp1   <- raster::predict(randomForest(select_important$abovegroundtree.~., data = select_important,
+                                        importance = TRUE,trControl=train_control,
+                                        ntree =2000, proximity = TRUE, mtry=1), 
+                           object=IMPOR_DATA, type='response',na.action = na.omit)
+
+
+  imp2   <- raster::predict(randomForest(select_important$abovegroundtree.~., data = select_important,
+                                         importance = TRUE,trControl=train_control,
+                                         ntree =2000, proximity = TRUE, mtry=1), 
+                            object=IMPOR_DATA, type='response',na.action = na.omit)
+
+#stack 
+  library(raster)
+  STACK11= stack(imp1,imp2)
+  #MEAN composition of two raster layer 
+  mean <- calc(STACK11, fun = mean)
+  
+  rrr <- mean(STACK11,na.rm=TRUE)
+  plot(rrr)
+  #///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  
+  library(dplyr)
+  library(randomForest)
+  
+  dfs <- list() #home for the list of dataframes on which to run a randomforest
+  
+  set.seed(1)
+  for(i in 1:20){
+    dfs[[i]] <- sample_n(select_important, size = 39, replace = FALSE)
+  }
+dfs 
+
+
+dfs_slicker_approach <- lapply(seq(20), 
+                               function(i) sample_n(select_important, size = 39, replace = FALSE))
+dfs_slicker_approach
+
+#model
+rfs <- lapply(dfs, function(m) randomForest(select_important$abovegroundtree. ~ ., 
+                                            data = select_important, importance = TRUE,
+                                            trControl=train_control,
+                                            ntree =1900, proximity = TRUE, mtry=1))
+
+
+rfs
+
+
+#importance
+rfs_imp <- lapply(dfs, function(m) importance(randomForest(select_important$abovegroundtree. ~ ., 
+                                                           data = select_important, importance = TRUE,
+                                                           trControl=train_control,
+                                                           ntree =2000, proximity = TRUE, mtry=1), type=1))
+
+rfs_imp
+
+rfs_imp[1:20]
+
+
+ww=data.frame(rfs_imp)
+rowMeans(ww)
+library(matrixStats)
+rowSds(as.matrix(ww))
+
+#prediction
+rfs_pred <- lapply(dfs, function(m) predict(randomForest(select_important$abovegroundtree. ~ ., 
+                                                           data = select_important, trControl=train_control,
+                                                         ntree =1900, proximity = TRUE, mtry=1,importance = TRUE)))
+
+
+attributes(rfs_pred)
+rfs_pred
+
+rfs_pred[1:20]
+
+
+www=data.frame(rfs_pred)
+
+#rmse of all/100 model together...............................................................................................
+RMSEE <- function (x, test) sqrt(mean((x-select_important$abovegroundtree.)^2))
+rmse_100 <- lapply(www, FUN = RMSEEE, test)
+rmse_100
+
+names(rmse_100)=c(1:20)
+
+cc=data.frame(rmse_100)
+#mean rmse of 100 model......................................................................................................
+rowMeans(cc[c(1:20)])
+library(matrixStats)
+rowSds(as.matrix(cc))
+
+#r2.............................................................................
+r2<-function (x, test) 1-(sum((x-select_important$abovegroundtree.)^2)/sum((select_important$abovegroundtree. -mean(select_important$abovegroundtree.))^2))
+
+r2_100 <- lapply(www, FUN = r2, test)
+r2_100
+
+ccc=data.frame(r2_100)
+#mean rmse of 100 model......................................................................................................
+rowMeans(ccc[c(1:20)])
+library(matrixStats)
+rowSds(as.matrix(ccc))
+
+
+
+#prediction
+rfs_predEd <- lapply(dfs, function(m) (randomForest(select_important$abovegroundtree. ~ ., 
+                                  data = select_important, trControl=train_control,
+                                  ntree =1900, proximity = TRUE, mtry=1,importance = TRUE)))
+
+summary(rfs_predEd)
+#importance of model 1
+
+rfs_predEd[[1]]$importance
+
+#lapply(rfs_predEd, `[`, 1:100)
+#join#1:3 means numer of culmn want to join
+join=sapply(rfs_predEd, `[`, 1:20)
+
+#importance
+importance=join[7,]
+
+
+dfff=data.frame(importance)
+#only mse
+mse=dfff[,c(TRUE,FALSE)]
+
+#importance as percentage
+library(dplyr)
+df11= 1000*(mse/sum(mse))
+
+
+
+#row means of column of importance
+#for only even column
+rowMeans(df11)
+#row sd of column
+library(matrixStats)
+rowSds(as.matrix (df11))
+
+#prediction
+predictionn=join[3,]
+
+#data frame 
+dfff1=data.frame(predictionn)
+#rename the coulm name
+names(dfff1)<-c(1:100)
+
+#rmse of all/100 model together...............................................................................................
+RMSEE <- function (x, test) sqrt(mean((x-select_important$abovegroundtree.)^2))
+rmse_100 <- lapply(dfff1, FUN = RMSEE, test)
+rmse_100
+
+#convert to data.frame
+x_frameee=data.frame(rmse_100)
+x_frameee
+head(x_frameee)
+
+#mean rmse of 100 model......................................................................................................
+rowMeans(x_frameee[,c(1:100)])
+#standard deviation
+bbbbb<-rowSds(as.matrix(x_frameee[, c(1:100)]))
+bbbbb
+#standard error of rmse of 100 model
+bbbbb/sqrt(100)
+
+
+
+#MAPEE
+MAPEE=function (x, test) mean(abs(x-select_important$abovegroundtree.)/select_important$abovegroundtree.) * 100
+MAPE_100 <- lapply(dfff1, FUN = MAPEE, test)
+MAPE_100
+
+#convert to data.frame
+x_frameE=data.frame(MAPE_100)
+x_frameE
+head(x_frameE)
+
+#mean rmse of 100 model......................................................................................................
+rowMeans(x_frameE[,c(1:100)])
+#standard deviation
+rowSds(as.matrix(x_frameE[, c(1:100)]))
+
+#r2.............................................................................
+r2<-function (x, test) 1-(sum((x-select_important$abovegroundtree.)^2)/sum((select_important$abovegroundtree. -mean(select_important$abovegroundtree.))^2))
+
+r2_100 <- lapply(dfff1, FUN = r2, test)
+r2_100
+
+ccc=data.frame(r2_100)
+#mean rmse of 100 model......................................................................................................
+rowMeans(ccc[c(1:20)])
+library(matrixStats)
+rowSds(as.matrix(ccc))
+
+ 
+#prediction over image............................................................
+    rfs_predd <- lapply(dfs, function(m) raster::predict(randomForest
+    (select_important$abovegroundtree. ~ ., data = select_important,
+    trControl=train_control,
+    ntree =2000, proximity = TRUE, mtry=1, 
+    importance = TRUE), object=IMPOR_DATA, type='response',na.action = na.omit))
+ 
+ rfs_predd[1]
+ 
+ rfs_predEd[1:2]
+ 
+ 
+ #save the model to disk$ for future use
+ saveRDS(rfs_predd, "./final_model.rdssf")
+ 
+ # later...
+ ##To know the current storage capacity
+  memory.limit()
+
+ ## To increase the storage capacity
+ memory.limit(size=56000)
+   
+ ## I did this to increase my storage capacity to 7GB
+ 
+ # load the model for use
+ rfs_predd <- readRDS("./final_model.rdssf")
+ 
+ 
+ 
+ rfs_predd[1]
+ 
+ plot(rfs_predd[[1]])
+ 
+ #stack 
+ STACK111= stack(rfs_predd[1:20])
+ #MEAN composition of two raster layer 
+ x <- reclassify(STACK111, cbind(0, NA))
+ r <- mean(x,na.rm=TRUE)
+ 
+ #save the model to disk$ for future use
+ saveRDS(r, "./final_model.rdssff")
+ 
+ 
+ 
+ # load the model for use
+ r <- readRDS("./final_model.rdssff")
+ 
+ 
+ 
+ plot(r)
+ 
+ #save tzo disk as tif format//last slash indicate save as file name
+ writeRaster(r,overwrite=TRUE,'G:/PH.D/my phd thesis/contents/13_chapter 4/Rmodel/Images from r/above_ground_tree_mean_NEW_RF_20RUN.tif')
+ #sds
+ sdR <- calc(x, fun = sd)
+ 
+ #save the model to disk$ for future use
+ saveRDS(sdR, "./final_model.rdssffs")
+ 
+ 
+ 
+ # load the model for use
+ sdR <- readRDS("./final_model.rdssffs")
+ 
+ 
+ plot(sdR)
+ 
+AAA=writeRaster(sdR, "pred_map", format='GTiff',overwrite=TRUE)
+
+#save tzo disk as tif format//last slash indicate save as file name
+writeRaster(sdR,overwrite=TRUE,'G:/PH.D/my phd thesis/contents/13_chapter 4/Rmodel/Images from r/above_ground_tree_sdr_NEW_RF_20RUN.tif')
+
+plot (AAA)
