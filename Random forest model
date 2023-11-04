@@ -1168,7 +1168,7 @@ rowSds(as.matrix(ccc))
  
  plot(r)
  
- #save tzo disk as tif format//last slash indicate save as file name
+ #save to disk as tif format//last slash indicate save as file name
  writeRaster(r,overwrite=TRUE,'G:/PH.D/my phd thesis/contents/13_chapter 4/Rmodel/Images from r/above_ground_tree_mean_NEW_RF_20RUN.tif')
  #sds
  sdR <- calc(x, fun = sd)
